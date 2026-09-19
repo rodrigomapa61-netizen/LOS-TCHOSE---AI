@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LOS TCHOSE AI - Painel de Análise</title>
+  <style>
+    :root { --bg: #0f172a; --card-bg: #1e293b; --accent: #38bdf8; --green: #22c55e; --text: #f8fafc; --muted: #94a3b8; }
+    body { background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 30px; }
+    header h1 { color: var(--accent); margin-bottom: 5px; }
+    .card { background-color: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); }
+    .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 5px; }
+    input { width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; box-sizing: border-box; }
+    button { width: 100%; background: var(--accent); color: #0f172a; font-weight: bold; border: none; padding: 12px; border-radius: 6px; cursor: pointer; margin-top: 15px; font-size: 1rem; }
+    button:hover { opacity: 0.9; }
+    .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center; margin-top: 20px; }
+    .stat-box { background: #0f172a; padding: 15px; border-radius: 8px; }
+    .stat-val { font-size: 1.5rem; font-weight: bold; color: var(--green); }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; background: #334155; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>LOS TCHOSE AI ⚽</h1>
+      <p style="color: var(--muted);">Painel de Análise Preditiva & Odds Justas</p>
+    </header>
+
+    <div class="card">
+      <h3>Configurar Análise</h3>
+      <div class="grid-inputs">
+        <div>
+          <label>API Key (API-Sports)</label>
+          <input type="password" id="apiKey" placeholder="Sua chave..." />
+        </div>
+        <div>
+          <label>ID Liga (71 = Brasileirão)</label>
+          <input type="number" id="leagueId" value="71" />
+        </div>
+        <div>
+          <label>ID Time Casa</label>
+          <input type="number" id="teamCasa" placeholder="Ex: 127 (Flamengo)" />
+        </div>
+        <div>
+          <label>ID Time Fora</label>
+          <input type="number" id="teamFora" placeholder="Ex: 121 (Palmeiras)" />
+        </div>
+      </div>
+      <button onclick="gerarAnalise()">Analisar Partida</button>
+    </div>
+
+    <div class="card" id="painelResultados" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>Resultado da Análise</h3>
+        <span class="badge" id="confiancaBadge">Confiança: -</span>
+      </div>
+
+      <h4>Probabilidades do Modelo</h4>
+      <div class="results-grid">
+        <div class="stat-box">
+          <label>Vitória Mandante</label>
+          <div class="stat-val" id="probCasa">0%</div>
+        </div>
+        <div class="stat-box">
+          <label>Empate</label>
+          <div class="stat-val" id="probEmpate">0%</div>
+        </div>
+        <div class="stat-box">
+          <label>Vitória Visitante</label>
+          <div class="stat-val" id="probFora">0%</div>
+        </div>
+      </div>
+
+      <h4 style="margin-top: 25px;">Gols Esperados (xG Projetado) & Odds Justas</h4>
+      <div class="results-grid">
+        <div class="stat-box">
+          <label>xG Total Esperado</label>
+          <div class="stat-val" id="xgTotal">0.0</div>
+        </div>
+        <div class="stat-box">
+          <label>Over 2.5 Gols</label>
+          <div class="stat-val" id="probOver25">0%</div>
+        </div>
+        <div class="stat-box">
+          <label>Odd Justa (Over 2.5)</label>
+          <div class="stat-val" style="color: var(--accent);" id="oddOver25">0.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function gerarAnalise() {
+      const apiKey = document.getElementById('apiKey').value;
+      const leagueId = document.getElementById('leagueId').value;
+      const teamCasa = document.getElementById('teamCasa').value;
+      const teamFora = document.getElementById('teamFora').value;
+
+      if (!apiKey || !teamCasa || !teamFora) {
+        alert('Preencha a API Key e os IDs dos times.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/analisar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            api_key: apiKey,
+            league_id: parseInt(leagueId),
+            team_casa_id: parseInt(teamCasa),
+            team_fora_id: parseInt(teamFora)
+          })
+        });
+
+        const data = await response.json();
+
+        document.getElementById('painelResultados').style.display = 'block';
+        document.getElementById('confiancaBadge').innerText = 'Confiança: ' + data.confianca_modelo;
+        document.getElementById('probCasa').innerText = data.probabilidades.vitoria_casa + '%';
+        document.getElementById('probEmpate').innerText = data.probabilidades.empate + '%';
+        document.getElementById('probFora').innerText = data.probabilidades.vitoria_fora + '%';
+        
+        document.getElementById('xgTotal').innerText = data.xg_esperado.total;
+        document.getElementById('probOver25').innerText = data.probabilidades.over_2_5 + '%';
+        document.getElementById('oddOver25').innerText = '@' + data.odds_justas.over_2_5;
+
+      } catch (err) {
+        alert('Erro ao conectar com o servidor.');
+      }
+    }
+  </script>
+</body>
+</html>
